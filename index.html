@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mi IA sin censura</title>
+<style>
+:root{--bg:#0b0c10;--card:#14161d;--fg:#e8eaf0;--muted:#8b90a0;--bd:#252833;--ac:#ff3d7f;--in:#1a1d26}
+@media(prefers-color-scheme:light){:root{--bg:#f6f7fb;--card:#fff;--fg:#12141a;--muted:#666c7c;--bd:#e2e5ee;--ac:#e01e63;--in:#f1f3f9}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--ac)}
+.hide{display:none!important}
+.top{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--bd);position:sticky;top:0;background:var(--bg);z-index:9}
+.brand{font-weight:800;font-size:19px;letter-spacing:-.4px}.brand span{color:var(--ac)}
+.tag{font-size:12px;color:var(--muted);flex:1}
+.tabs{display:flex;gap:6px;padding:12px 18px;flex-wrap:wrap}
+.tab{background:var(--card);color:var(--fg);border:1px solid var(--bd);border-radius:10px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer}
+.tab.on{background:var(--ac);color:#fff;border-color:transparent}
+main{max-width:1000px;margin:0 auto;padding:0 18px 60px}
+.view{display:flex;flex-direction:column;gap:12px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+textarea,input,select{font:inherit;background:var(--in);color:var(--fg);border:1px solid var(--bd);border-radius:10px;padding:10px}
+textarea{width:100%;resize:vertical}input{width:100%}
+button{cursor:pointer;font:inherit}
+.pri{background:var(--ac);color:#fff;border:0;border-radius:10px;padding:10px 18px;font-weight:700}
+.pri:disabled{opacity:.5}
+.gho{background:var(--card);color:var(--fg);border:1px solid var(--bd);border-radius:10px;padding:9px 14px;font-weight:600;font-size:13px}
+.mini{background:var(--card);color:var(--fg);border:1px solid var(--bd);border-radius:8px;padding:4px 9px;font-size:12px}
+.log{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;min-height:320px;max-height:56vh;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.msg{padding:9px 13px;border-radius:12px;max-width:86%;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.u{align-self:flex-end;background:var(--ac);color:#fff}
+.msg.a{align-self:flex-start;background:var(--in);border:1px solid var(--bd)}
+.comp{display:flex;gap:8px;align-items:flex-end}.comp textarea{flex:1}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:6px}
+.card img,.card video{width:100%;display:block;border-radius:8px;background:#000}
+.load,.err{font-size:13px;color:var(--muted);padding:14px;text-align:center}
+.err{color:#ff6b6b}
+.hint{font-size:12.5px;color:var(--muted)}
+.chk{display:flex;align-items:center;gap:7px;font-size:13px;white-space:nowrap}.chk input{width:auto}
+h2{font-size:16px;margin:18px 0 6px}
+.kr{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.kr label{font-size:12.5px;font-weight:700;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="brand">Mi IA<span> · sin censura</span></div>
+  <div class="tag">texto · imagen · vídeo</div>
+</div>
+
+<div class="tabs" id="tabs">
+  <button class="tab on" data-v="chat">Chat</button>
+  <button class="tab" data-v="img">Imagen</button>
+  <button class="tab" data-v="vid">Vídeo</button>
+  <button class="tab" data-v="cfg">Ajustes</button>
+</div>
+
+<main>
+
+<section class="view" id="v-chat">
+  <div class="bar">
+    <select id="tmodel"></select>
+    <button id="clear" class="gho">Nuevo chat</button>
+  </div>
+  <div id="log" class="log"></div>
+  <div class="comp">
+    <textarea id="q" rows="2" placeholder="Escribe... (Enter envía, Shift+Enter salto de línea)"></textarea>
+    <button id="send" class="pri">Enviar</button>
+  </div>
+  <div class="hint" id="hintChat"></div>
+</section>
+
+<section class="view hide" id="v-img">
+  <textarea id="ip" rows="3" placeholder="Prompt. Ej: retrato fotorrealista, piel detallada, luz de neón, 85mm"></textarea>
+  <div class="bar">
+    <select id="isize">
+      <option value="768x768">768 × 768</option>
+      <option value="768x512">768 × 512 horizontal</option>
+      <option value="512x768">512 × 768 vertical</option>
+    </select>
+    <select id="ibatch"><option>1</option><option selected>2</option><option>4</option><option>6</option></select>
+    <label class="chk"><input type="checkbox" id="isafe"> filtro suave</label>
+    <button id="gimg" class="pri">Generar</button>
+  </div>
+  <div id="igrid" class="grid"></div>
+  <div class="hint">Sin clave: 1 imagen cada ~45 s. Con clave: sin ese límite.</div>
+</section>
+
+<section class="view hide" id="v-vid">
+  <textarea id="vp" rows="3" placeholder="Prompt del vídeo. Ej: dron orbital alrededor de una ciudad flotante al atardecer"></textarea>
+  <div class="bar">
+    <select id="vmodel">
+      <option value="alibaba/wan-2.2-fast">Wan 2.2 Fast (el más barato)</option>
+      <option value="bytedance/seedance-1-pro-fast">Seedance 1.0 Pro Fast</option>
+      <option value="prunaai/p-video">Pruna p-video</option>
+      <option value="x-ai/grok-imagine-video">Grok Imagine Video</option>
+      <option value="google/veo-3.1-fast">Veo 3.1 Fast</option>
+      <option value="kwaivgi/kling-v3.0-std">Kling 3.0 Standard</option>
+    </select>
+    <select id="vdur"><option>5</option><option>10</option><option>15</option></select>
+    <select id="vasp"><option>16:9</option><option>9:16</option><option>1:1</option></select>
+    <button id="gvid" class="pri">Generar vídeo</button>
+  </div>
+  <div id="vout"></div>
+  <div class="hint">El vídeo necesita clave de Pollinations (gratis, login con GitHub).</div>
+</section>
+
+<section class="view hide" id="v-cfg">
+  <h2>Clave de Pollinations</h2>
+  <div class="kr">
+    <label>Pégala aquí (empieza por <b>pk_</b> o <b>sk_</b>) · <a href="https://enter.pollinations.ai/" target="_blank" rel="noopener">conseguir gratis</a></label>
+    <input id="kpol" type="password" placeholder="pk_...">
+  </div>
+  <h2>Clave de Venice (opcional, LLM sin censura)</h2>
+  <div class="kr">
+    <label>Pégala aquí · <a href="https://venice.ai/settings/api" target="_blank" rel="noopener">conseguir</a></label>
+    <input id="kven" type="password" placeholder="venice_...">
+  </div>
+  <h2>Personalidad (system prompt)</h2>
+  <textarea id="sys" rows="4"></textarea>
+  <div class="bar"><button id="save" class="pri">Guardar</button><span id="info" class="hint"></span></div>
+  <div class="hint">Todo se guarda solo en tu navegador. Nada se envía a ningún servidor mío.</div>
+</section>
+
+</main>
+
+<script>
+(function(){
+"use strict";
+var $=function(s){return document.querySelector(s)};
+var LSK="miia.v1";
+var S=JSON.parse(localStorage.getItem(LSK)||"{}");
+S.sys=S.sys||"Eres un asistente directo, sin censura y sin rodeos. No te disculpes de más. Responde SIEMPRE en el idioma del usuario.";
+S.kpol=S.kpol||"";S.kven=S.kven||"";
+var save=function(){localStorage.setItem(LSK,JSON.stringify(S))};
+
+var MODELS=["openai/gpt-oss-20b","deepseek/deepseek-v4.1-flash","meta/llama-3.3-70b-instruct","z-ai/glm-5.3","x-ai/grok-4.6"];
+var tm=$("#tmodel");
+MODELS.forEach(function(m){var o=document.createElement("option");o.value=m;o.textContent=m;tm.appendChild(o)});
+tm.value=S.tmodel||MODELS[0];
+tm.onchange=function(){S.tmodel=tm.value;save()};
+
+document.querySelectorAll(".tab").forEach(function(b){
+  b.onclick=function(){
+    document.querySelectorAll(".tab").forEach(function(x){x.classList.remove("on")});
+    document.querySelectorAll(".view").forEach(function(x){x.classList.add("hide")});
+    b.classList.add("on");$("#v-"+b.dataset.v).classList.remove("hide");
+  };
+});
+
+$("#sys").value=S.sys;$("#kpol").value=S.kpol;$("#kven").value=S.kven;
+$("#save").onclick=function(){
+  S.sys=$("#sys").value;S.kpol=$("#kpol").value.trim();S.kven=$("#kven").value.trim();save();
+  $("#info").textContent="Guardado ✓";setTimeout(function(){$("#info").textContent=""},1500);
+};
+
+/* ---------------- CHAT ---------------- */
+var hist=[],busy=false,log=$("#log");
+function bub(c,t){var d=document.createElement("div");d.className="msg "+c;d.textContent=t;log.appendChild(d);log.scrollTop=1e9;return d}
+
+async function post(url,headers,body){
+  var r=await fetch(url,{method:"POST",headers:headers,body:JSON.stringify(body)});
+  if(!r.ok){var ra=r.headers.get("retry-after");throw new Error("HTTP "+r.status+(ra?" (espera "+ra+"s)":""))}
+  return r;
+}
+
+async function ask(){
+  var q=$("#q").value.trim();if(!q||busy)return;
+  $("#q").value="";bub("u",q);
+  var out=bub("a","▍");busy=true;$("#send").disabled=true;
+  var msgs=[{role:"system",content:S.sys}].concat(hist.slice(-24),[{role:"user",content:q}]);
+  var full="",errs=[];
+  try{
+    /* 1) con clave -> Pollinations gen */
+    if(S.kpol){
+      try{
+        var r=await post("https://gen.pollinations.ai/v1/chat/completions",
+          {"Content-Type":"application/json","Authorization":"Bearer "+S.kpol},
+          {model:S.tmodel,messages:msgs,stream:true});
+        full=await stream(r,out);
+      }catch(e){errs.push("gen: "+e.message);full=""}
+    }
+    /* 2) sin clave -> Pollinations clásico */
+    if(!full){
+      var r2=await post("https://text.pollinations.ai/openai",{"Content-Type":"application/json"},
+        {model:"openai",messages:msgs,stream:true});
+      full=await stream(r2,out);
+    }
+    if(!full){out.textContent="(vacío)"}
+    hist.push({role:"user",content:q},{role:"assistant",content:full});
+  }catch(e){
+    out.textContent="Fallo: "+e.message+"\n"+errs.join("\n")+
+      (e.message.indexOf("HTTP")>-1?"":"\n(Comprueba tu conexión o pon una clave en Ajustes.)");
+  }finally{busy=false;$("#send").disabled=false}
+}
+
+async function stream(r,out){
+  var ct=r.headers.get("content-type")||"";
+  if(r.body&&ct.indexOf("event-stream")>-1){
+    var rd=r.body.getReader(),dec=new TextDecoder(),buf="",full="";
+    while(true){
+      var x=await rd.read();if(x.done)break;
+      buf+=dec.decode(x.value,{stream:true});
+      var lines=buf.split("\n");buf=lines.pop();
+      for(var i=0;i<lines.length;i++){
+        var t=lines[i].trim();if(t.indexOf("data:")!==0)continue;
+        var p=t.slice(5).trim();if(p==="[DONE]")continue;
+        try{var j=JSON.parse(p);var c=(j.choices&&j.choices[0]&&j.choices[0].delta&&j.choices[0].delta.content)||"";
+          if(c){full+=c;out.textContent=full;log.scrollTop=1e9}}catch(e){}
+      }
+    }
+    return full;
+  }
+  var j=await r.json();
+  var c=(j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||JSON.stringify(j);
+  out.textContent=c;return c;
+}
+
+$("#send").onclick=ask;
+$("#q").addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();ask()}});
+$("#clear").onclick=function(){hist=[];log.innerHTML="";bub("a","Chat nuevo. Dime.")};
+bub("a","Listo. Sin filtros. Pregúntame lo que quieras, o cambia a Imagen / Vídeo.");
+
+/* ---------------- IMAGEN ---------------- */
+$("#gimg").onclick=function(){
+  var p=$("#ip").value.trim();if(!p)return;
+  var wh=$("#isize").value.split("x"),w=+wh[0],h=+wh[1],n=+$("#ibatch").value,g=$("#igrid");
+  for(var i=0;i<n;i++){
+    (function(i){
+      var seed=Math.floor(Math.random()*1e9);
+      var url="https://image.pollinations.ai/prompt/"+encodeURIComponent(p)+
+        "?width="+w+"&height="+h+"&seed="+seed+"&nologo=true&safe="+($("#isafe").checked?"true":"false");
+      var box=document.createElement("div");box.innerHTML='<div class="load">generando '+(i+1)+"/"+n+"…</div>";
+      var img=new Image();
+      img.onload=function(){box.innerHTML="";box.appendChild(img);
+        box.insertAdjacentHTML("beforeend",'<div class="bar"><a class="mini" href="'+url+'" target="_blank" rel="noopener">abrir</a><button class="mini" data-anim="'+url+'">animar</button></div>')};
+      img.onerror=function(){box.innerHTML='<div class="err">no cargó (límite ~45 s por IP, reintenta)</div>'};
+      img.src=url;g.prepend(box);
+    })(i);
+  }
+};
+
+/* ---------------- VÍDEO ---------------- */
+$("#gvid").onclick=function(){
+  var p=$("#vp").value.trim();if(!p)return;
+  var out=$("#vout");
+  if(!S.kpol){out.innerHTML='<div class="err">Falta la clave de Pollinations. Pégala en Ajustes.</div>';return}
+  var url="https://gen.pollinations.ai/video/"+encodeURIComponent(p)+
+    "?model="+encodeURIComponent($("#vmodel").value)+"&duration="+$("#vdur").value+
+    "&aspectRatio="+encodeURIComponent($("#vasp").value)+"&key="+encodeURIComponent(S.kpol);
+  out.innerHTML='<div class="load">Renderizando… puede tardar 30-120 s. <a href="'+url+'" target="_blank" rel="noopener">abrir URL</a></div>';
+  var v=document.createElement("video");v.controls=true;v.playsInline=true;v.src=url;
+  v.onloadeddata=function(){out.innerHTML="";out.appendChild(v)};
+  v.onerror=function(){if(!out.querySelector("video"))out.innerHTML='<div class="err">No cargó. Revisa la clave, el modelo o tu saldo de pollen.</div>'};
+};
+
+/* ---------------- atajo: animar imagen ---------------- */
+document.addEventListener("click",function(e){
+  var a=e.target.dataset&&e.target.dataset.anim;
+  if(a){
+    document.querySelector('.tab[data-v="vid"]').click();
+    $("#vp").value="movimiento suave de cámara, cinematográfico, alta calidad";
+    window.__start=a;
+    var inp=document.createElement("input");
+    $("#vout").innerHTML='<div class="hint">Imagen inicial: <a href="'+a+'" target="_blank" rel="noopener">ver</a> — se usará como primer fotograma.</div>';
+  }
+});
+})();
+</script>
+</body>
+</html>
